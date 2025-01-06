@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: "{{ .Values.configMap.name }}"
+  namespace: "{{ .Values.namespace }}"
+data:
+  config.json: |
+    {
+      "app_name": "{{ .Values.app.name }}",
+      "version": "{{ .Values.configMap.cofig.version }}",
+      "logging": {
+        "level":  "{{ .Values.configMap.cofig.log.level }}",
+        "output":  "{{ .Values.configMap.cofig.log.output }}"
+        }
+    }

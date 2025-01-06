@@ -1,0 +1,40 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: spring-boot-api
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+  - matrix:
+      generators:
+      - git:
+          repoURL: 'https://github.com/agnieszkaq/values.git'
+          revision: HEAD
+          files:
+          - path: repos/argocd-busybox.yaml
+      - list:
+          elements: []
+          elementsYaml: "{{ .key | toJson }}"
+  template:
+    metadata:
+      name: '{{.app.name}}-{{.env}}'
+    spec:
+      project: default
+      source:
+        repoURL: 'https://github.com/agnieszkaq/argocd-busybox.git'
+        path: spring-boot-api
+        targetRevision: HEAD
+        helm:
+          values: |
+            {{ .values | toString | nindent 12 }}
+      destination:
+        name: '{{ .cluster }}'
+        namespace: '{{.env}}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ApplyOutOfSyncOnly=true

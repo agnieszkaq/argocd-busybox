@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "{{ .Values.deployment.name }}"
+  namespace: "{{ .Values.namespace }}"
+annotations:
+  checksum: {{ include (print $.Template.BasePath "/cm.yaml") . | sha256sum }}
+spec:
+  strategy:
+    type: "{{ .Values.deployment.strategy.type }}"
+    rollingUpdate:
+      maxSurge: {{ .Values.deployment.strategy.rollingUpdate.maxSurge }}
+      maxUnavailable: {{ .Values.deployment.strategy.rollingUpdate.maxUnavailable }}
+  replicas: {{ .Values.deployment.replicas }}
+  selector:
+    matchLabels:
+      app: "{{ .Values.app.name }}"
+  template:
+    metadata:
+      labels:
+        app: "{{ .Values.app.name }}"
+    spec:
+      containers:
+        - name: "{{ .Values.app.name }}"
+          image: "{{ .Values.deployment.image.repository }}:{{ .Values.deployment.image.tag }}"
+          args:
+            - "-spring.profiles.active={{ .Values.env }}"
+          command:
+          - /bin/sh
+          - -c
+          - |
+            while true; do
+              nc -lkp 8080 -e /bin/sh
+            done
+          env:
+          - name: POD_IP
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
+          envFrom:
+          - secretRef:
+              name: "{{ .Values.secret.name }}"
+          volumeMounts:
+            - name:  "{{ .Values.deployment.volume.name }}"
+              mountPath: "{{ .Values.deployment.volume.mountPath }}"
+              subPath: "{{ .Values.deployment.volume.subPath }}"
+          resources:
+            limits:
+              memory: "{{ .Values.deployment.resources.limits.memory }}"
+              cpu: "{{ .Values.deployment.resources.limits.cpu }}"
+            requests:
+              memory: "{{ .Values.deployment.resources.requests.memory }}"
+              cpu: "{{ .Values.deployment.resources.requests.cpu }}"
+          ports:
+                {{- range .Values.deployment.ports }}
+                - name: {{ .name }}
+                  containerPort: {{ .containerPort }}
+                {{- end }}
+          readinessProbe:
+            tcpSocket:
+              port: "{{ .Values.deployment.probe.port }}"
+            initialDelaySeconds:  {{ .Values.deployment.probe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.deployment.probe.periodSeconds }}
+          livenessProbe:
+            tcpSocket:
+              port: "{{ .Values.deployment.probe.port }}"
+            initialDelaySeconds: {{ .Values.deployment.probe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.deployment.probe.periodSeconds }}
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - wget http://localhost:8080/service/shutdown
+      volumes:
+        - name: "{{ .Values.deployment.volume.name }}"
+          configMap:
+            name: "{{ .Values.configMap.name }}"
